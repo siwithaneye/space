@@ -1,6 +1,10 @@
 Crafty.scene('Game', function() {
  
-  Crafty.e('2D, Canvas, Image').image("assets/spacebg2.png");
+  var bg = Crafty.e('2D, Image, Canvas')
+  .image("assets/spacebg2.png");
+
+  var asteroidManager = Crafty.e('AsteroidManager');
+
 
   // A 2D array to keep track of all occupied tiles
   this.occupied = new Array(Game.map_grid.width);
@@ -18,7 +22,7 @@ Crafty.scene('Game', function() {
   // Place a tree at every edge square on our grid of 16x16 tiles
   for (var x = 0; x < Game.map_grid.width; x++) {
     for (var y = 0; y < Game.map_grid.height; y++) {
-      if (Math.random() < 0.02 && !this.occupied[x][y]) {
+      if (Math.random() < 0.06 && !this.occupied[x][y]) {
         // Place a bush entity at the current tile
         Crafty.e('Star').at(x, y);
         this.occupied[x][y] = true;

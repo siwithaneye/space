@@ -40,10 +40,10 @@ Crafty.c('Star', {
 	_twinkle:-1,
 	_maxAlpha:0.8,
 	_minAlpha:0.0,
-	_speed:50,
+	_speed:100,
 	init: function(){
 		this.requires('Actor, Color')
-		.color('rgb(255, 255, 255)')		
+		.color('rgb(255, 255, 255)');	
 		this.w = 2;
 		this.h = 2;
 		this.alpha = 0.8;
@@ -51,7 +51,7 @@ Crafty.c('Star', {
 	},
 
 	frame: function(){	
-		if(Math.random() < 0.001 && this._twinkle < 0)
+		if(Math.random() < 0.005 && this._twinkle < 0)
 		{
 			this._twinkle = this._speed;
 			this.alpha = this._maxAlpha;
@@ -81,7 +81,7 @@ Crafty.c('PlayerCharacter', {
 		.stopOnSolids()
 		.onHit('Village', this.visitVillage)
 		.image('assets/spaceship2.png')
-		.origin(16, 16)
+		.origin(16, 16);
 	},
 
 	stopOnSolids: function()
@@ -106,6 +106,7 @@ Crafty.c('PlayerCharacter', {
 
 });
 
+
 Crafty.c('Village', {
   init: function() {
     this.requires('Actor, Color')
@@ -120,7 +121,8 @@ Crafty.c('Village', {
 
 Crafty.c('ShipPhysics', {
 
-	_v: new Crafty.math.Vector2D(0, 0),	
+	_vx: 0,	
+	_vy: 0,
 	_vr: 0,
 	_thrust: 0.0,
 	_damp: 0.94,
@@ -132,18 +134,163 @@ Crafty.c('ShipPhysics', {
 
 	step: function(){
 		
-		this._v.x += Math.sin((Math.PI/180) * this.rotation) * this._thrust;
-		this._v.y += -Math.cos((Math.PI/180) * this.rotation) * this._thrust;
+		this._vx += Math.sin((Math.PI/180) * this.rotation) * this._thrust;
+		this._vy += -Math.cos((Math.PI/180) * this.rotation) * this._thrust;
 
-		this.x += this._v.x;
-		this.y += this._v.y;
+		this.x += this._vx;
+		this.y += this._vy;
 		this.rotation += this._vr;
 
-		this._v.x *= this._damp;
-		this._v.y *= this._damp;
+		this._vx *= this._damp;
+		this._vy *= this._damp;
 		this._vr *= this._rdamp;
 	},
 })
+
+Crafty.c('Physics', {
+
+	_vx: 0,
+	_vy: 0,
+	_vr: 0,	
+	_damp: 1.0,
+	_rdamp: 1.0,
+
+	init:function(){
+		this.requires('2D');
+		this.bind('EnterFrame', this.step);		
+	},
+
+	step: function(){
+		
+		this.x += this._vx;
+		this.y += this._vy;
+		this.rotation += this._vr;
+
+		this._vx *= this._damp;
+		this._vy *= this._damp;
+		this._vr *= this._rdamp;
+	},
+
+	vx:function(x){
+		this._vx = x;
+		return this;
+	},
+
+	vy:function(y){
+		this._vy = y;
+		return this;
+	},
+
+	vr:function(r){
+		this._vr = r;
+		return this;
+	},
+
+	
+})
+
+Crafty.c('Bullet', {
+
+	init: function(){
+		this.onHit('Asteroid', this.hitAsteroid);
+	},
+
+	hitAsteroid: function(data){
+		var asteroid = data[0].obj;
+		asteroid.explode();
+		this.destroy();
+	},
+})
+
+Crafty.c('Asteroid', {
+
+	
+	_size: 2,
+
+	init:function(){
+
+	},
+	  
+	explode: function(){
+		switch(this._size){
+		
+		case 2:
+			this.spawnAsteroid(this.x, this.y, 'assets/smallrock2.png');
+			this.spawnAsteroid(this.x, this.y, 'assets/smallrock2.png');
+			this.destroy();
+			break;
+		case 1:
+			this.spawnAsteroid(this.x, this.y, 'assets/smallrock3.png');
+			this.spawnAsteroid(this.x, this.y, 'assets/smallrock3.png');
+			this.destroy();
+			break;
+		default:		
+			this.destroy();
+			break;
+		}	
+	},
+
+	size:function(size){
+		this._size = size;
+	},
+
+	spawnAsteroid: function(x, y, img){
+
+		Crafty.e('Actor, Image, Collision, Physics, Asteroid')
+		.attr({
+        		x:x, 
+        		y:y,
+        		rotation:0, 
+        })
+        .image(img)
+        .vx(this._vx + (-1.2 + Math.random()*2.4))
+        .vy(this._vy + (-1.2 + Math.random()*2.4))
+        .vr(Math.random() * Math.PI * 0.3 + (Math.PI*0.1))
+        .origin("center")
+        .size(this._size-1);
+	},
+})
+
+
+Crafty.c('AsteroidManager', {
+
+	_rate: 4000,
+	_timeTilNext: 0,
+
+	init:function(){
+		this.requires('2D');
+		this.bind('EnterFrame', this.step);
+		this._timeTilNext = this._rate;
+	},
+
+	step: function(event){
+		this._timeTilNext -= event.dt;		
+		if(this._timeTilNext <= 0)
+		{
+			this._timeTilNext += this._rate;
+			this.spawnAsteroid();
+		}
+				
+	},
+
+	spawnAsteroid: function(){
+		var x = -100;
+		var y = Math.random() * 600;
+
+		Crafty.e('Actor, Image, Collision, Physics, Asteroid')
+		.attr({
+        		x:x, 
+        		y:y,
+        		rotation:0, 
+        })
+        .image('assets/smallrock.png')
+        .vx(0.5)
+        .vr(Math.random() * Math.PI * 0.3 + (Math.PI*0.1))
+        .origin(50, 50);        
+	},
+	
+})
+
 
 
 Crafty.c('PlayerControls', {
@@ -183,6 +330,23 @@ Crafty.c('PlayerControls', {
         	this._thrusting = true;
         } else if (e.key == Crafty.keys['DOWN_ARROW']) {
         	
+        } else if (e.key == Crafty.keys['SPACE']) {        	
+
+        	var ship = Crafty.e('Actor, Image, Physics, Collision, Bullet')        	
+        	.attr({
+        		x:this.x + 8, 
+        		y:this.y + 16,
+        		rotation:this.rotation, 
+        	})
+        	.image('assets/bullet.png')
+        	.vx(Math.sin(this.rotation*(Math.PI/180)) * 15)
+        	.vy(-Math.cos(this.rotation*(Math.PI/180)) * 15)
+        	
+
+        	//console.log('x:' + this.x + ' y:' + this.y + ' ox:' + this.origin.x + ' oy:' + this.origin.y);
+        	//.vy(Math.cos(this.rotation*(Math.PI/180)) * 1)
+
+			
         }
 	},
 
